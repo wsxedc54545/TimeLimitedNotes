@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div>
+    <h3>Time Limited Notes</h1>
+    Note: <input type="text" id="noteText">
+    <p></p>
+    <label for="duration">Duration</label>
+    <select name="duration" id="duration">
+      <option value="30000" selected>30 sec</option>
+      <option value="60000">1 min</option>
+      <option value="300000">5 min</option>
+      <option value="600000">10 min</option>
+    </select>
+    <button onclick="saveNote()">Save Note</button>
+    <div id="noteList"></div>
+  </div>
+  <script>
+    class TimeLimitedNotes {
+      constructor() {
+        this.notes = new Map();
+      }
+
+      saveNote() {
+        const noteText = document.getElementById('noteText').value.trim();
+        if (!noteText) { return };
+
+        const duration = parseInt(document.getElementById('duration').value) || 5000;
+        const timestamp = Date.now();
+        this.notes.set(timestamp, {
+          text: noteText,
+          duration,
+          ref: setTimeout(() => this.deleteNote(timestamp), duration)
+        });
+        this.displayNotes();
+      }
+
+      displayNotes() {
+        const noteList = document.getElementById('noteList');
+        noteList.innerHTML = '';
+        
+        // 將 Map 的 entries 轉換為陣列，然後倒序排列
+        const sortedNotes = Array.from(this.notes.entries()).sort((a, b) => b[1].ref - a[1].ref);
+
+        // 顯示筆記
+        for (const [timestamp, note] of sortedNotes) {
+          const noteItem = document.createElement('div')
+          noteItem.classList = 'note-item';
+          noteItem.textContent = note.text
+
+          const remainingTime = this.calculateRemainingTime(timestamp);
+          if (remainingTime < 5000) {
+            noteItem.classList.add('red-text');
+          }
+
+          noteItem.innerHTML += `
+            (${Math.ceil(remainingTime / 1000)} seconds)
+            <div>
+              <button onclick="editNote(${timestamp})">Edit</button>
+              <button onclick="deleteNote(${timestamp})">Delete</button>
+            </div>
+          `;
+          noteList.appendChild(noteItem);
+        }
+      }
+
+      deleteNote(timestamp) {
+        if (this.notes.has(timestamp)) {
+          clearTimeout(this.notes.get(timestamp).ref);
+          this.notes.delete(timestamp);
+          this.displayNotes();
+        }
+      }
+
+      editNote(timestamp) {
+        const note = this.notes.get(timestamp);
+        const newNoteText = prompt('Edit Note:', note.text);
+
+        if (newNoteText !== null) {
+          const newDuration = parseInt(prompt('Custom Duration (ms):', note.duration)) || 5000;
+
+          // 刪除原先的筆記
+          this.deleteNote(timestamp);
+
+          // 新增一個新的筆記
+          const newTimestamp = Date.now();
+          const newNote = {
+              text: newNoteText,
+              duration: newDuration,
+              ref: setTimeout(() => this.deleteNote(newTimestamp), newDuration)
+          };
+
+          this.notes.set(newTimestamp, newNote);
+
+          this.displayNotes();
+        }
+      }
+
+      calculateRemainingTime(timestamp) {
+        const currentTime = Date.now();
+        const note = this.notes.get(timestamp);
+
+        // 考慮之前已經經過的時間
+        const elapsedTime = currentTime - timestamp;
+        
+        // 使用新的持續時間減去已經經過的時間
+        const remainingTime = Math.max(note.duration - elapsedTime, 0);
+
+        return remainingTime;
+      }
+    }
+
+    const saveNote = () => {
+        timeLimitedNotes.saveNote();
+        document.getElementById('noteText').value = '';
+    }
+
+    const deleteNote = (timestamp) => {
+        timeLimitedNotes.deleteNote(timestamp);
+    }
+
+    const editNote = (timestamp) => {
+      timeLimitedNotes.editNote(timestamp);
+    }
+
+    const timeLimitedNotes = new TimeLimitedNotes();
+
+    setInterval(() => {
+      timeLimitedNotes.displayNotes();
+    }, 1000); // Update note list every second
+
+    const noteText = document.getElementById('noteText');
+    noteText.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            saveNote();
+        }
+    });
+  </script>
+</body>
+</html>
